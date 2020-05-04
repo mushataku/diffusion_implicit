@@ -45,7 +45,7 @@ def init_u(ax):
   ax.xaxis.set_tick_params(direction='in')
   ax.yaxis.set_tick_params(direction='in')
   ax.tick_params(labelsize=21)
-
+  # ax.set_yscale("log")
   x,u = get_u(0)
   im_u, = ax.plot(x,u, "ro-", label="numeric")
   if TEST == 0:

@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from numpy import exp, pi, sin
 
 import os
 
@@ -10,13 +11,20 @@ import os
 GIF = 0
 MP4 = 0
 PLT = 1
+
+TEST = 1
 ###########################
 
 ################### PARAMETER ##################
 df_time = pd.read_csv("../data/output_time.csv")
 T = df_time["time"]
 FILE_PATH = '../figs/1D_diff'
+kappa = 1.0
 ################### PARAMETER ##################
+
+# 解析解
+def analytic(t, x):
+  return exp(-kappa*pi*pi*t)*sin(pi*x)
 
 #########################描画のための関数#########################
 
@@ -39,16 +47,27 @@ def init_u(ax):
   ax.tick_params(labelsize=21)
 
   x,u = get_u(0)
-  im, = ax.plot(x,u)
-
-  return im
+  im_u, = ax.plot(x,u, "ro-", label="numeric")
+  if TEST == 0:
+    ax.legend(fontsize=20)
+    return im_u
+  else:
+    im_u_analytic, = ax.plot(x,analytic(T[0],x), "bo-", label="analytic")
+    ax.legend(fontsize=20)
+    return im_u, im_u_analytic
 
 # データ更新
 def reset_u(im,frame):
   x,u = get_u(frame)
   im.set_data(x,u)
 
+def reset_u_analytic(im,frame):
+  x,_ = get_u(frame)
+  im.set_data(x,analytic(T[frame],x))
+
 #########################描画のための関数#########################
+
+
 
 ################################################################
 ########################### main ###############################
@@ -65,7 +84,10 @@ time_text = fig.text(0.01, 0.99, '', size=20, color="white", horizontalalignment
 #           backgroundcolor="black",color="white", size=20)
 
 #### アニメの初期画像生成
-im_u = init_u(ax_u)
+if TEST == 0:
+  im_u = init_u(ax_u)
+else:
+  im_u, im_u_analytic = init_u(ax_u)
 time_text.set_text("time = 0.000")
 
 #### 画像更新用関数
@@ -74,6 +96,9 @@ def animate(frame):
     return
   print("frame:",frame)
   reset_u(im_u, frame)
+  if(TEST):
+    reset_u_analytic(im_u_analytic, frame)
+  
   time_text.set_text("time = %.3f"%T[frame])
 
 ani = FuncAnimation(fig, animate, frames=int(len(T))

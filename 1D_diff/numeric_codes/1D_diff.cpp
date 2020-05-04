@@ -60,7 +60,7 @@ int main(){
   fprintf(time_fp, "time\n");
   output(ti, t, u);
   printf("lx:%f\n", lx);
-  for(ti = 0, t = 0.0; ti < NT-1 && t < TMAX; ti++, t += dt) {
+  for(ti = 0, t = 0.0; ti < NT-1 && t < TMAX; ti++) {
     // u[ti] から u[ti+1] を求める
     // まず仮に u[ti+1] を u[ti] とする
     u[ti+1] = u[ti];
@@ -83,6 +83,7 @@ int main(){
       // du < EPS ならこの u[ti+1] をアクセプト
     }
     // u[ti+1] が求め終わったのでこれを出力
+    t += dt;
     output(ti+1, t, u);
   }
 
@@ -118,6 +119,7 @@ void init(vvd &u){
     }
   }
   boundary(u[0]);
+  printf("%e\n", u[0][25]);
 }
 
 void output(int ti, double t, vvd &u){

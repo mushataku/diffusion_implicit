@@ -8,9 +8,10 @@ from numpy import exp, pi, sin
 import os
 
 ##########CONFIG###########
-GIF = 0
+# 動画の保存形式を選択
+GIF = 1
 MP4 = 0
-PLT = 1
+PLT = 0
 
 TEST = 1
 ###########################
@@ -18,7 +19,7 @@ TEST = 1
 ################### PARAMETER ##################
 df_time = pd.read_csv("../data/output_time.csv")
 T = df_time["time"]
-FILE_PATH = '../figs/1D_diff'
+FILE_PATH = '../figs/animation'
 kappa = 1.0
 ################### PARAMETER ##################
 
@@ -47,12 +48,13 @@ def init_u(ax):
   ax.tick_params(labelsize=21)
   # ax.set_yscale("log")
   x,u = get_u(0)
-  im_u, = ax.plot(x,u, "ro-", label="numeric")
   if TEST == 0:
+    im_u, = ax.plot(x,u, "ro-", label="numeric")
     ax.legend(fontsize=20)
     return im_u
   else:
     im_u_analytic, = ax.plot(x,analytic(T[0],x), "bo-", label="analytic")
+    im_u, = ax.plot(x,u, "ro-", label="numeric")
     ax.legend(fontsize=20)
     return im_u, im_u_analytic
 
@@ -106,7 +108,7 @@ ani = FuncAnimation(fig, animate, frames=int(len(T))
 
 
 if(GIF == 1):
-    ani.save(FILE_PATH+".gif", writer="pillow", fps=5)
+    ani.save(FILE_PATH+".gif", writer='pillow')
 if(MP4 == 1):
     ani.save(FILE_PATH+".mp4", writer="ffmpeg", fps=5)
 if(PLT == 1):

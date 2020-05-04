@@ -45,9 +45,10 @@ void TIME_set();
 /*************************** diffusion を解く関数 ***************************/
 // void init(vvd &u);
 void init(vd &u);
-
 void boundary(vd &nu);
 
+int diffusion(vd &u);
+double SOR(vd &u, vd &a);
 /*************************** diffusion を解く関数 ***************************/
 
 /*********************************ファイル関連*********************************/
@@ -65,12 +66,10 @@ int main(){
   start_t = time(NULL);
 
   vd u(NX);
-  vd a(NX);
   int ti = 0;
   double du, nu;
   double t = 0.0;
   TIME_set();
-  printf("%d\n", (int)TIME.size());
   init(u);
   fprintf(time_fp, "time\n");
   output(t, u);
@@ -78,22 +77,9 @@ int main(){
   printf("****************CALICULATION START****************\n");
   while(t < TMAX) {
     // u から nu を求める
-    for(int i = 1; i < NX-1; i++) {
-      a[i] = u[i] + lx/2.0*(u[i+1]+u[i-1]-2.0*u[i]);
-    }
-    // nu を求める
-    du = 1.0;
-    while(du > EPS){
-      // 仮の u[ti+1] から nu = (仮のu[ti+1]) を求める
-      du = 0.0;
-      for(int i = 1; i < NX-1; i++) {
-        nu = OMEGA*( lx/2.0/(1.0+lx)*(u[i+1]+u[i-1]) + a[i]/(1.0+lx) );
-        nu += (1.0-OMEGA)*u[i];
-
-        du = std::max(std::abs(nu-u[i]), du);
-        u[i] = nu;
-      }
-      // du < EPS ならこの u をアクセプト
+    if(diffusion(u) == -1){
+      printf("Diffusion eqeation does not converge!!!\n");
+      return 0;
     }
     t += dt;
     // nu が求め終わったのでこれを出力
@@ -111,14 +97,6 @@ int main(){
   return 0;
 }
 
-void TIME_set(){
-  double t = DT;
-    printf("%f\n", t);
-  while(t < ENDTIME + T_EPS){
-    TIME.push_back(t);
-    t += DT;
-  }
-}
 
 
 void init(vd &u){
@@ -147,6 +125,14 @@ void init(vd &u){
   boundary(u);
 }
 
+void TIME_set(){
+  double t = DT;
+  while(t < ENDTIME + T_EPS){
+    TIME.push_back(t);
+    t += DT;
+  }
+}
+
 void output(double t, vd &u){
   sprintf(u_filename, "../data/u/%.3f.csv", t);
   FILE *fp = fopen(u_filename, "w");
@@ -167,4 +153,36 @@ void output(double t, vd &u){
 
 void boundary(vd &nu){
   nu[0] = nu[NX-1] = 0.0;
+}
+
+int diffusion(vd &u){
+  // u から nu を求める
+  vd a(NX);
+  int imax = 99999;
+  double du;
+  for(int i = 1; i < NX-1; i++) {
+    a[i] = u[i] + lx/2.0*(u[i+1]+u[i-1]-2.0*u[i]);
+  }
+  // nu を求める
+  for(int icnt = 0; icnt < imax; icnt++) {
+    // u から 仮のnuを求める
+    // |u-nd| < EPS ならこの u をアクセプト
+    du = SOR(u, a);
+    if(du < EPS) return icnt;
+  }
+
+  // imax 回反復しても収束しないなら -1 を返して終了
+  return -1;
+}
+
+double SOR(vd &u, vd &a){
+  double nu, du = 0.0;
+  // 仮の u から nu (仮のnu)を求める
+  for(int i = 1; i < NX-1; i++) {
+    nu = OMEGA*( lx/2.0/(1.0+lx)*(u[i+1]+u[i-1]) + a[i]/(1.0+lx) );
+    nu += (1.0-OMEGA)*u[i];
+    du = std::max(std::abs(nu-u[i]), du);
+    u[i] = nu;
+  }
+  return du;
 }

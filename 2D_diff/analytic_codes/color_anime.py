@@ -4,13 +4,14 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from numpy import exp, pi, sin
+import mpl_toolkits.axes_grid1
 
 import os
 
 ##########CONFIG###########
 # 動画の保存形式を選択
-GIF = 1
-MP4 = 0
+GIF = 0
+MP4 = 1
 PLT = 0
 
 TEST = 1
@@ -19,13 +20,15 @@ TEST = 1
 ################### PARAMETER ##################
 df_time = pd.read_csv("../data/output_time.csv")
 T = df_time["time"]
+cfp = open('../data/condition.txt')
+NX, NY = map(int, cfp.readline().split())
+kappa, Lx, Ly = map(float, cfp.readline().split())
+cfp.close
+X, Y = np.meshgrid(np.linspace(0,Lx,NX), np.linspace(0,Ly,NY))
+_, U = np.meshgrid(np.linspace(0,Lx,NX), np.linspace(0,Ly,NY))
 FILE_PATH = '../figs/animation'
-kappa = 1.0
+TITLE = "2D diffusion"
 ################### PARAMETER ##################
-
-# 解析解
-def analytic(t, x):
-  return exp(-kappa*pi*pi*t)*sin(pi*x)
 
 #########################描画のための関数#########################
 
@@ -33,42 +36,38 @@ def analytic(t, x):
 def get_u(frame):
   fp = "../data/u/%.3f.csv" % T[frame]
   df_u = pd.read_csv(fp)
-  x = df_u["x"]
   u = df_u["u"]
-  return x,u
+  for i in range(NX*NY):
+    U[i//NY][i%NY] = u[i]
 
 # 初期画像を設定
 def init_u(ax):
-  ax.set_ylabel("u", fontsize=21)
   ax.set_xlabel("x", fontsize=21)
-  ax.set_title("1D Diffusion", fontsize=24)
-  ax.grid(linestyle="dotted")
-  ax.xaxis.set_tick_params(direction='in')
-  ax.yaxis.set_tick_params(direction='in')
+  ax.set_ylabel("y", fontsize=21)
+  ax.set_title(TITLE, fontsize=24)
   ax.tick_params(labelsize=21)
-  # ax.set_yscale("log")
-  x,u = get_u(0)
-  if TEST == 0:
-    im_u, = ax.plot(x,u, "ro-", label="numeric")
-    ax.legend(fontsize=20)
-    return im_u
-  else:
-    im_u_analytic, = ax.plot(x,analytic(T[0],x), "bo-", label="analytic")
-    im_u, = ax.plot(x,u, "ro-", label="numeric")
-    ax.legend(fontsize=20)
-    return im_u, im_u_analytic
+
+  # 参照： https://qiita.com/nishimuraatsushi/items/2df8542ebf97affa26fb
+  divider = mpl_toolkits.axes_grid1.make_axes_locatable(ax)
+  cax = divider.append_axes('right', '5%', pad='3%')
+
+  get_u(0)
+  im = ax.pcolormesh(X, Y, U, cmap="jet")
+  cbar = fig.colorbar(im, cax=cax, orientation="vertical") # カラーバーの表示
+  cbar.ax.tick_params(labelsize=18)
+  return im
 
 # データ更新
 def reset_u(im,frame):
-  x,u = get_u(frame)
-  im.set_data(x,u)
+  get_u(frame)
+  # set_array の引数は(2Dを無理やり1Dにした)1D の配列
+  # じゃあ u を渡せばよいか？というわけには行かず、なぜかこうするとうまくいく
+  # 参照：https://stackoverflow.com/questions/18797175/animation-with-pcolormesh-routine-in-matplotlib-how-do-i-initialize-the-data/31490420#31490420
+  # 訳が分からん…
+  im.set_array(U[:-1,:-1].ravel())
 
-def reset_u_analytic(im,frame):
-  x,_ = get_u(frame)
-  im.set_data(x,analytic(T[frame],x))
 
 #########################描画のための関数#########################
-
 
 
 ################################################################
@@ -86,11 +85,8 @@ time_text = fig.text(0.01, 0.99, '', size=20, color="white", horizontalalignment
 #           backgroundcolor="black",color="white", size=20)
 
 #### アニメの初期画像生成
-if TEST == 0:
-  im_u = init_u(ax_u)
-else:
-  im_u, im_u_analytic = init_u(ax_u)
-time_text.set_text("time = 0.000")
+im_u = init_u(ax_u)
+
 
 #### 画像更新用関数
 def animate(frame):
@@ -98,8 +94,6 @@ def animate(frame):
     return
   print("frame:",frame)
   reset_u(im_u, frame)
-  if(TEST):
-    reset_u_analytic(im_u_analytic, frame)
   
   time_text.set_text("time = %.3f"%T[frame])
 
@@ -108,9 +102,9 @@ ani = FuncAnimation(fig, animate, frames=int(len(T))
 
 
 if(GIF == 1):
-    ani.save(FILE_PATH+".gif", writer='pillow')
+    ani.save(FILE_PATH+".gif", writer='pillow', fps=25)
 if(MP4 == 1):
-    ani.save(FILE_PATH+".mp4", writer="ffmpeg", fps=5)
+    ani.save(FILE_PATH+".mp4", writer="ffmpeg", fps=25)
 if(PLT == 1):
     plt.show()
 

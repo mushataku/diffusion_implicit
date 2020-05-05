@@ -119,7 +119,7 @@ void init(vd &u){
 
   if(INITIAL == 2){
     for(int i = 0; i < NX; i++) {
-      u[i] = std::sin(M_PI*dx*i);
+      u[i] = std::sin(3.0*M_PI*dx*i) + std::sin(1.0*M_PI*dx*i);
     }
   }
   boundary(u);

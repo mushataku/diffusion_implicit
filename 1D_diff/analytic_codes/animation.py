@@ -9,9 +9,9 @@ import os
 
 ##########CONFIG###########
 # 動画の保存形式を選択
-GIF = 1
+GIF = 0
 MP4 = 0
-PLT = 0
+PLT = 1
 
 TEST = 1
 ###########################
@@ -25,7 +25,7 @@ kappa = 1.0
 
 # 解析解
 def analytic(t, x):
-  return exp(-kappa*pi*pi*t)*sin(pi*x)
+  return exp(-9.0*kappa*pi*pi*t)*sin(3.0*pi*x) + exp(-1.0*kappa*pi*pi*t)*sin(1.0*pi*x)
 
 #########################描画のための関数#########################
 

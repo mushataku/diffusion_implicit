@@ -19,16 +19,20 @@ const int INITIAL = 1;
 /******************計算条件********************/
 const double Lx = 1.0;
 const double Ly = 1.0;
+const double Lz = 1.0;
 const int NY = 100 + 1;
 const int NX = 100 + 1;
+const int NZ = 100 + 1;
 const double dx = Lx/(NX-1);
 const double dy = Ly/(NY-1);
+const double dz = Lz/(NZ-1);
 const double kappa = 0.1;
 const double OMEGA = 1.8;
 const double dt = 0.01;
 const double TMAX = 2.0 + 1e-9;
 const double lx = kappa*dt/dx/dx;
 const double ly = kappa*dt/dy/dy;
+const double lz = kappa*dt/dz/dz;
 const double EPS = 1e-9;
 
 /*
@@ -46,13 +50,12 @@ void TIME_set();
 
 
 /*************************** diffusion を解く関数 ***************************/
-// void init(vvd &u);
-void init(vvd &u);
-void boundary(vvd &u);
+void init(vvvd &u);
+void boundary(vvvd &u);
 
-int diffusion(vvd &u);
-double SOR(vvd &u, vvd &a);
-double analytic(int jx, int jy, double t);
+int diffusion(vvvd &u);
+double SOR(vvvd &u, vvvd &a);
+double analytic(int jx, int jy, int jz, double t);
 /*************************** diffusion を解く関数 ***************************/
 
 /*********************************ファイル関連*********************************/
@@ -61,7 +64,7 @@ double analytic(int jx, int jy, double t);
 FILE *u_fp;
 char u_filename[50];
 // その時刻における u の値をファイルにアウトプット
-void output(double t, vvd &u);
+void output(double t, vvvd &u);
 /*****************************************************************************/
 
 /****************************/
@@ -74,7 +77,7 @@ int main(){
   start_t = time(NULL);
 
 
-  vvd u(NX, vd(NY));
+  vvvd u(NX, vvd(NY, vd(NZ)));
   int ti = 0;
   double du, nu;
   double t = 0.0;
@@ -110,15 +113,18 @@ int main(){
 
 
 
-void init(vvd &u){
+void init(vvvd &u){
   if(INITIAL == 0){
     for(int jx = 0; jx < NX; jx++) {
       for(int jy = 0; jy < NY; jy++) {
-        if(0.3*NX < jx && jx < 0.7*NX && 0.3*NY < jy && jy < 0.7*NY){
-          u[jx][jy] = 1.0;
-        }
-        else{
-          u[jx][jy] = 0.0;
+        for(int jz = 0; jz < NZ; jz++){
+          if(0.3*NX < jx && jx < 0.7*NX && 0.3*NY < jy && 
+                  jy < 0.7*NY && 0.3*NZ < jz && jz < 0.7*NZ){
+            u[jx][jy][jx] = 1.0;
+          }
+          else{
+            u[jx][jy][jz] = 0.0;
+          }
         }
       }
     }
@@ -127,18 +133,13 @@ void init(vvd &u){
   if(INITIAL == 1){
     for(int jx = 0; jx < NX; jx++) {
       for(int jy = 0; jy < NY; jy++) {
-        u[jx][jy] = std::sin(2.0*M_PI*dx*jx)*std::sin(2.0*M_PI*dy*jy);
+        for(int jz = 0; jz < NZ; jz++){
+          u[jx][jy][jz] = std::sin(M_PI*dx*jx)*std::sin(M_PI*dy*jy)*std::sin(M_PI*dz*jz);
+        }
       }
     }
   }
   boundary(u);
-  
-}
-
-double analytic(int jx, int jy, double t){
-  double x = dx*jx;
-  double y = dy*jy;
-  return exp(-8.0*kappa*M_PI*M_PI*t)*sin(2.0*M_PI*x)*sin(2.0*M_PI*y);
 }
 
 void TIME_set(){
@@ -149,7 +150,7 @@ void TIME_set(){
   }
 }
 
-void output(double t, vvd &u){
+void output(double t, vvvd &u){
   // sprintf(u_filename, "../data/u/%.3f.csv", t);
   // FILE *fp = fopen(u_filename, "w");
   // fprintf(time_fp, "%f\n", t);
@@ -158,39 +159,49 @@ void output(double t, vvd &u){
   if(OUTPUT_TERMINAL) printf("time:%f\n", t);
   
   error = 0.0;
-  for(int jx = 0; jx < NX; jx++) {
-    for(int jy = 0; jy < NY; jy++) {
-      if(OUTPUT_TERMINAL){
-        if(jy < NY-1) printf("%f ", u[jx][jy]);
-        else printf("%f\n", u[jx][jy]);
+  for(int jx = 1; jx < NX-1; jx++) {
+    for(int jy = 1; jy < NY-1; jy++) {
+      for(int jz = 1; jz < NZ-1; jz++) {
+        if(OUTPUT_TERMINAL){
+          if(jy < NY-1) printf("%f ", u[jx][jy][jz]);
+          else printf("%f\n", u[jx][jy][jz]);
+        }
+        // fprintf(fp, "%e,%e,%e\n", jx*dx, jy*dy, u[jy][jx]);
+        double tmp = std::abs(u[jx][jy][jz]/analytic(jx,jy,jz,t)-1.0);
+        // double tmp = std::abs(u[jx][jy][jz] - analytic(jx,jy,jz,t));
+        error = std::max(tmp,error);
       }
-      // fprintf(fp, "%e,%e,%e\n", jx*dx, jy*dy, u[jy][jx]);
-      error += std::abs(u[jx][jy]-analytic(jx,jy,t));
     }
   }
-  error /= double(NX)*NY;
   printf("t = %e error:%e\n", t, error);
   // fclose(fp);
 }
 
-void boundary(vvd &u){
+void boundary(vvvd &u){
   for(int jx = 0; jx < NX; jx++) {
-    u[jx][0] = u[jx][NY-1] = 0;
+    u[jx][0][0] = u[jx][NY-1][0] = u[jx][0][NZ-1] = u[jx][NY-1][NZ-1] = 0;
   }
   for(int jy = 0; jy < NY; jy++) {
-    u[0][jy] = u[NX-1][jy] = 0;
+    u[0][jy][0] = u[NX-1][jy][0] = u[0][jy][NZ-1] = u[NX-1][jy][NZ-1] = 0;
+  }
+  for(int jz = 0; jz < NZ; jz++) {
+    u[0][0][jz] = u[NX-1][0][jz] = u[0][NY-1][jz] = u[NX-1][NY-1][jz] = 0;
   }
 }
 
-int diffusion(vvd &u){
+int diffusion(vvvd &u){
   // u から nu を求める
-  vvd a(NX, vd(NY));
+  vvvd a(NX, vvd(NY, vd(NZ)));
   int imax = 99999;
   double du;
   for(int jx = 1; jx < NX-1; jx++) {
     for(int jy = 1; jy < NY-1; jy++) {
-      a[jx][jy] = u[jx][jy] + 0.5*lx*(u[jx+1][jy]+u[jx-1][jy]-2.0*u[jx][jy]);
-      a[jx][jy] += 0.5*lx*(u[jx][jy+1]+u[jx][jy-1]-2.0*u[jx][jy]);
+      for(int jz = 1; jz < NZ-1; jz++) {
+        a[jx][jy][jz] = u[jx][jy][jz]
+                      + 0.5*lx*(u[jx+1][jy][jz]+u[jx-1][jy][jz]-2.0*u[jx][jy][jz])
+                      + 0.5*lx*(u[jx][jy+1][jz]+u[jx][jy-1][jz]-2.0*u[jx][jy][jz])
+                      + 0.5*lx*(u[jx][jy][jz+1]+u[jx][jy][jz-1]-2.0*u[jx][jy][jz]);
+      }
     }
   }
   // nu を求める
@@ -205,19 +216,29 @@ int diffusion(vvd &u){
   return -1;
 }
 
-double SOR(vvd &u, vvd &a){
+double SOR(vvvd &u, vvvd &a){
   double nu, du = 0.0, tmp;
   // 仮の u から nu (仮のnu)を求める
   for(int jx = 1; jx < NX-1; jx++) {
     for(int jy = 1; jy < NY-1; jy++) {
-      tmp = u[jx+1][jy] + u[jx-1][jy] + u[jx][jy+1] + u[jx][jy-1];
-      nu = OMEGA*(lx*0.5*tmp + a[jx][jy])/(1.0+2.0*lx);
-      nu += (1.0-OMEGA)*u[jx][jy];
-      du = std::max(std::abs(nu-u[jx][jy]), du);
+      for(int jz = 1; jz < NZ-1; jz++) {
+        tmp = u[jx+1][jy][jz] + u[jx-1][jy][jz] + u[jx][jy+1][jz] + u[jx][jy-1][jz]
+            + u[jx][jy][jz+1] + u[jx][jy][jz-1] ;
+        nu = OMEGA*(lx*0.5*tmp + a[jx][jy][jz])/(1.0+3.0*lx);
+        nu += (1.0-OMEGA)*u[jx][jy][jz];
+        du = std::max(std::abs(nu-u[jx][jy][jz]), du);
 
-      u[jx][jy] = nu;
+        u[jx][jy][jz] = nu;
+      }
     }
   }
   return du;
 }
 
+
+double analytic(int jx, int jy, int jz, double t){
+  double x = dx*jx;
+  double y = dy*jy;
+  double z = dz*jz;
+  return exp(-3.0*kappa*M_PI*M_PI*t)*sin(M_PI*x)*sin(M_PI*y)*sin(M_PI*z);
+}

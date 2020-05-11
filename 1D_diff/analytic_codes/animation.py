@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -10,8 +11,8 @@ import os
 ##########CONFIG###########
 # 動画の保存形式を選択
 GIF = 0
-MP4 = 0
-PLT = 1
+MP4 = 1
+PLT = 0
 
 TEST = 1
 ###########################
@@ -25,7 +26,7 @@ kappa = 1.0
 
 # 解析解
 def analytic(t, x):
-  return exp(-9.0*kappa*pi*pi*t)*sin(3.0*pi*x) + exp(-1.0*kappa*pi*pi*t)*sin(1.0*pi*x)
+  return exp(-9.0*kappa*pi*pi*t)*sin(3.0*pi*x) - exp(-1.0*kappa*pi*pi*t)*sin(1.0*pi*x)
 
 #########################描画のための関数#########################
 
@@ -77,13 +78,13 @@ def reset_u_analytic(im,frame):
 
 # 基本的な部品を宣言  
 fig = plt.figure(figsize=(8, 8))
-# fig.subplots_adjust(left=0.80)
+fig.subplots_adjust(left=0.15)
 ax_u = fig.add_subplot(111)
 time_text = fig.text(0.01, 0.99, '', size=20, color="white", horizontalalignment='left',
             verticalalignment='top', backgroundcolor='black')
 # kappa 出力 後でやる
-# fig.text(0, 0.01, "Re="+str(Re),
-#           backgroundcolor="black",color="white", size=20)
+fig.text(0, 0.01, r"$\kappa$="+str(kappa),
+          backgroundcolor="black",color="white", size=20)
 
 #### アニメの初期画像生成
 if TEST == 0:

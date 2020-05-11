@@ -35,7 +35,7 @@ TIME に配列 (DT, 2DT, ..., ENDTIME) をsetする
 */
 const double T_EPS = 1.0e-10;
 const double DT = 0.01;
-const double ENDTIME = 1.0;
+const double ENDTIME = 0.5;
 vd TIME;
 //出力時刻を set する関数
 void TIME_set();
@@ -119,7 +119,7 @@ void init(vd &u){
 
   if(INITIAL == 2){
     for(int i = 0; i < NX; i++) {
-      u[i] = std::sin(3.0*M_PI*dx*i) + std::sin(1.0*M_PI*dx*i);
+      u[i] = std::sin(3.0*M_PI*dx*i) - std::sin(1.0*M_PI*dx*i);
     }
   }
   boundary(u);

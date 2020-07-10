@@ -12,8 +12,12 @@ using vvvvd = std::vector<vvvd>;
 /**********************config*************************/
 // terminal に出力して確認 
 const int OUTPUT_TERMINAL = 0;
-// 初期条件 -> 0:長方形, 1:三角形 2:sinx 
-const int INITIAL = 2;
+// 初期条件 -> 0:長方形, 1:三角形 2:sinx 3:無
+const int INITIAL = 3;
+// 0:Euler法, 1:Cranck-Nicolson法
+const int METHOD = 0;
+// 0:無, 1:delta, 2:一様
+const int SOURCE = 2;
 /*****************************************************/
 
 /******************計算条件********************/
@@ -23,8 +27,8 @@ const int NX = 100 + 1;
 const double dx = Lx/(NX-1);
 const double kappa = 1.0;
 const double OMEGA = 1.8;
-const double dt = 0.01;
-const double TMAX = 2.0 + 1e-9;
+const double dt = 0.1;
+const double TMAX = 4.0 + 1e-9;
 const double lx = kappa*dt/dx/dx;
 const double EPS = 1e-9;
 
@@ -33,15 +37,17 @@ const double EPS = 1e-9;
 時刻 0 ~ endtime の間のプロファイルを時間 DT ごとに出力させるための変数達
 TIME に配列 (DT, 2DT, ..., ENDTIME) をsetする
 */
-const double T_EPS = 1.0e-10;
+const double T_EPS = 1.0e-5;
 const double DT = 0.01;
-const double ENDTIME = 0.5;
+const double ENDTIME = 2.0;
 vd TIME;
 //出力時刻を set する関数
 void TIME_set();
 /*********************************************/
 
-
+vd Source(NX);
+void Source_set();
+void Source_reset();
 /*************************** diffusion を解く関数 ***************************/
 // void init(vvd &u);
 void init(vd &u);
@@ -66,22 +72,31 @@ int main(){
   start_t = time(NULL);
 
   vd u(NX);
-  int ti = 0;
+  int ti = 0, ite;
   double du, nu;
   double t = 0.0;
   TIME_set();
+  Source_set();
   init(u);
   fprintf(time_fp, "time\n");
   output(t, u);
   printf("lx:%f\n", lx);
   printf("****************CALICULATION START****************\n");
+  bool reset = 1;
   while(t < TMAX) {
     // u から nu を求める
-    if(diffusion(u) == -1){
+    ite = diffusion(u);
+    if(ite == -1){
       printf("Diffusion eqeation does not converge!!!\n");
       return 0;
     }
     t += dt;
+    printf("iteration:%d when time=%f\n", ite, t);
+    if(t > 2.0 && reset){
+      Source_reset();
+      printf("reset!!\n");
+      reset = 0;
+    }
     // nu が求め終わったのでこれを出力
     if(ti < TIME.size() && t > TIME[ti] - T_EPS){
       output(t, u);
@@ -122,6 +137,12 @@ void init(vd &u){
       u[i] = std::sin(3.0*M_PI*dx*i) - std::sin(1.0*M_PI*dx*i);
     }
   }
+
+  if(INITIAL == 3){
+    for(int i = 0; i < NX; i++) {
+      u[i] = 0;
+    }
+  }
   boundary(u);
 }
 
@@ -160,8 +181,15 @@ int diffusion(vd &u){
   vd a(NX);
   int imax = 99999;
   double du;
-  for(int i = 1; i < NX-1; i++) {
-    a[i] = u[i] + lx/2.0*(u[i+1]+u[i-1]-2.0*u[i]);
+  for(int i = 0; i < NX; i++) {
+    if(METHOD == 0){
+      // u[i] += dt*Source[i];
+      // a[i] = u[i];
+      a[i] = u[i] + dt*Source[i];
+    }
+    if(METHOD == 1){
+      a[i] = u[i] + lx/2.0*(u[i+1]+u[i-1]-2.0*u[i]);
+    }
   }
   // nu を求める
   for(int icnt = 0; icnt < imax; icnt++) {
@@ -177,12 +205,48 @@ int diffusion(vd &u){
 
 double SOR(vd &u, vd &a){
   double nu, du = 0.0;
-  // 仮の u から nu (仮のnu)を求める
+  // 仮の u から nu (仮のnu)を求める 一番外側 i==NX-1 は更新しない
   for(int i = 1; i < NX-1; i++) {
-    nu = OMEGA*( lx/2.0/(1.0+lx)*(u[i+1]+u[i-1]) + a[i]/(1.0+lx) );
+    if(METHOD == 0){
+      nu = OMEGA*(lx*(u[i+1]+u[i-1])+a[i])/(1.0+2.0*lx);
+    }
+    if(METHOD == 1){
+      nu = OMEGA*( lx/2.0/(1.0+lx)*(u[i+1]+u[i-1]) + a[i]/(1.0+lx) );
+    }
+    nu += (1.0-OMEGA)*u[i];
+    du = std::max(std::abs(nu-u[i]), du);
+    u[i] = nu;
+  }
+  {// i = NX-1
+    int i = NX-1;
+    if(METHOD == 0 && SOURCE == 2){
+      double phi = 0.1;
+      // nu = OMEGA*(lx*u[i-1]+a[i])/(1.0+1.0*lx);
+      nu = OMEGA*(lx*u[i-1]+a[i])/(1.0+(1.0+phi*dx)*lx);
+    }
     nu += (1.0-OMEGA)*u[i];
     du = std::max(std::abs(nu-u[i]), du);
     u[i] = nu;
   }
   return du;
+}
+
+void Source_set(){
+  if(SOURCE == 1){
+    for(int i = 0; i < NX; i++) {
+      if(i == NX/2) Source[i] = 1.0/dx;
+      else Source[i] = 0.0;
+    }
+  }
+  if(SOURCE == 2){
+    for(int i = 0; i < NX; i++) {
+      Source[i] = 1.0;
+    }
+  }
+}
+
+void Source_reset(){
+  for(int i = 0; i < NX; i++) {
+    Source[i] = 0.0;
+  }
 }

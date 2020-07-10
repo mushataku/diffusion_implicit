@@ -25,7 +25,7 @@ const double dy = Ly/(NY-1);
 const double kappa = 0.1;
 const double OMEGA = 1.0;
 const double dt = 0.01;
-const double TMAX = 2.0 + 1e-9;
+const double TMAX = 1.0 + 1e-9;
 const double lx = kappa*dt/dx/dx;
 const double ly = kappa*dt/dy/dy;
 const double EPS = 1e-9;
@@ -37,7 +37,7 @@ TIME に配列 (DT, 2DT, ..., ENDTIME) をsetする
 */
 const double T_EPS = 1.0e-10;
 const double DT = 0.01;
-const double ENDTIME = 2.0;
+const double ENDTIME = 1.0;
 vd TIME;
 //出力時刻を set する関数
 void TIME_set();
@@ -119,7 +119,8 @@ void init(vvd &u){
   if(INITIAL == 1){
     for(int jx = 0; jx < NX; jx++) {
       for(int jy = 0; jy < NY; jy++) {
-        u[jx][jy] = std::sin(M_PI*dx*jx)*std::sin(M_PI*dy*jy);
+        u[jx][jy] = std::sin(M_PI*dx*jx)*std::sin(2.0*M_PI*dy*jy)
+                  + std::sin(2.0*M_PI*dx*jx)*std::sin(M_PI*dy*jy);
       }
     }
   }

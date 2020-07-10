@@ -4,17 +4,19 @@ import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from numpy import exp, pi, sin
+from numpy import exp, pi, sin, abs
 
 import os
 
 ##########CONFIG###########
 # 動画の保存形式を選択
 GIF = 0
-MP4 = 1
-PLT = 0
+MP4 = 0
+PLT = 1
 
 TEST = 1
+SOURCE = 2
+YMAX = 0.5
 ###########################
 
 ################### PARAMETER ##################
@@ -22,11 +24,17 @@ df_time = pd.read_csv("../data/output_time.csv")
 T = df_time["time"]
 FILE_PATH = '../figs/animation'
 kappa = 1.0
+dt = 0.01
 ################### PARAMETER ##################
 
 # 解析解
 def analytic(t, x):
-  return exp(-9.0*kappa*pi*pi*t)*sin(3.0*pi*x) - exp(-1.0*kappa*pi*pi*t)*sin(1.0*pi*x)
+  if(SOURCE == 0):
+    return exp(-9.0*kappa*pi*pi*t)*sin(3.0*pi*x) - exp(-1.0*kappa*pi*pi*t)*sin(1.0*pi*x)
+  if(SOURCE == 1):
+    return 0.25-0.5*abs(x-0.5)
+  if(SOURCE == 2):
+    return -0.5*x*x + x
 
 #########################描画のための関数#########################
 
@@ -50,11 +58,17 @@ def init_u(ax):
   # ax.set_yscale("log")
   x,u = get_u(0)
   if TEST == 0:
+    if(YMAX != 0):
+      ax.set_ylim(0,YMAX)
     im_u, = ax.plot(x,u, "ro-", label="numeric")
     ax.legend(fontsize=20)
     return im_u
   else:
-    im_u_analytic, = ax.plot(x,analytic(T[0],x), "bo-", label="analytic")
+    if(SOURCE == 0):
+      LABEL = "analytic"
+    if(SOURCE == 1 or SOURCE == 2):
+      LABEL = "steady"
+    im_u_analytic, = ax.plot(x,analytic(T[0],x), "bo-", label=LABEL)
     im_u, = ax.plot(x,u, "ro-", label="numeric")
     ax.legend(fontsize=20)
     return im_u, im_u_analytic
@@ -83,7 +97,7 @@ ax_u = fig.add_subplot(111)
 time_text = fig.text(0.01, 0.99, '', size=20, color="white", horizontalalignment='left',
             verticalalignment='top', backgroundcolor='black')
 # kappa 出力 後でやる
-fig.text(0, 0.01, r"$\kappa$="+str(kappa),
+fig.text(0, 0.01, r"$\kappa$="+str(kappa)+r", $\Delta$t="+str(dt),
           backgroundcolor="black",color="white", size=20)
 
 #### アニメの初期画像生成

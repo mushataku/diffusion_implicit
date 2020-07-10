@@ -26,14 +26,14 @@ const int NZ = 100 + 1;
 const double dx = Lx/(NX-1);
 const double dy = Ly/(NY-1);
 const double dz = Lz/(NZ-1);
-const double kappa = 0.1;
+const double kappa = 1.0;
 const double OMEGA = 1.8;
 const double dt = 0.01;
-const double TMAX = 2.0 + 1e-9;
+const double TMAX = 0.5 + 1e-9;
 const double lx = kappa*dt/dx/dx;
 const double ly = kappa*dt/dy/dy;
 const double lz = kappa*dt/dz/dz;
-const double EPS = 1e-9;
+const double EPS = 1e-5;
 
 /*
 以下出力枚数の調整用
@@ -42,7 +42,7 @@ TIME に配列 (DT, 2DT, ..., ENDTIME) をsetする
 */
 const double T_EPS = 1.0e-10;
 const double DT = 0.01;
-const double ENDTIME = 2.0;
+const double ENDTIME = 0.5;
 vd TIME;
 //出力時刻を set する関数
 void TIME_set();
@@ -62,14 +62,11 @@ double analytic(int jx, int jy, int jz, double t);
 // FILE *condition_fp = fopen("../data/condition.txt", "w");
 // FILE *time_fp = fopen("../data/output_time.csv", "w");
 FILE *u_fp;
+FILE *error_fp = fopen("../data/error.csv","w");
 char u_filename[50];
 // その時刻における u の値をファイルにアウトプット
 void output(double t, vvvd &u);
 /*****************************************************************************/
-
-/****************************/
-double error = 0.0;
-/****************************/
 
 int main(){
   // 時間計測
@@ -84,17 +81,21 @@ int main(){
   TIME_set();
   init(u);
   // fprintf(time_fp, "time\n");
+  fprintf(error_fp, "time,error\n");
   output(t, u);
   printf("lx:%f\n", lx);
   // fprintf(condition_fp, "%d %d\n%e %e %e", NX, NY, kappa, Lx, Ly);
   printf("****************CALICULATION START****************\n");
   while(t < TMAX) {
     // u から nu を求める
-    if(diffusion(u) == -1){
-      printf("Diffusion eqeation does not converge!!!\n");
-      printf("when time = %f\n", t);
-      return 0;
-    }
+
+    // if(diffusion(u) == -1){
+    //   printf("Diffusion eqeation does not converge!!!\n");
+    //   printf("when time = %f\n", t);
+    //   return 0;
+    // }
+    printf("number of iteration :%d \n", diffusion(u));
+
     t += dt;
     // nu が求め終わったのでこれを出力
     if(ti < TIME.size() && t > TIME[ti] - T_EPS){
@@ -105,6 +106,7 @@ int main(){
 
   // fclose(time_fp);
   // fclose(condition_fp);
+  fclose(error_fp);
   printf("******************NORMAL END******************\n");
   end_t = time(NULL);
   printf("This calculatioin took %ld second \n", end_t - start_t);
@@ -154,11 +156,10 @@ void output(double t, vvvd &u){
   // sprintf(u_filename, "../data/u/%.3f.csv", t);
   // FILE *fp = fopen(u_filename, "w");
   // fprintf(time_fp, "%f\n", t);
-
   // fprintf(fp, "x,y,u\n");
   if(OUTPUT_TERMINAL) printf("time:%f\n", t);
   
-  error = 0.0;
+  double error = 0.0;
   for(int jx = 1; jx < NX-1; jx++) {
     for(int jy = 1; jy < NY-1; jy++) {
       for(int jz = 1; jz < NZ-1; jz++) {
@@ -167,13 +168,14 @@ void output(double t, vvvd &u){
           else printf("%f\n", u[jx][jy][jz]);
         }
         // fprintf(fp, "%e,%e,%e\n", jx*dx, jy*dy, u[jy][jx]);
-        double tmp = std::abs(u[jx][jy][jz]/analytic(jx,jy,jz,t)-1.0);
-        // double tmp = std::abs(u[jx][jy][jz] - analytic(jx,jy,jz,t));
-        error = std::max(tmp,error);
+        // error += std::abs(u[jx][jy][jz] - analytic(jx,jy,jz,t));
+        error += std::abs(1.0 - u[jx][jy][jz]/analytic(jx,jy,jz,t));
       }
     }
   }
+  error /= double(NX)*NY*NZ;
   printf("t = %e error:%e\n", t, error);
+  fprintf(error_fp, "%e,%e\n", t, error);
   // fclose(fp);
 }
 

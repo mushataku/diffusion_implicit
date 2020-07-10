@@ -8,7 +8,6 @@ from matplotlib.animation import FuncAnimation
 from numpy import exp, pi, sin, cosh, abs
 from matplotlib.ticker import ScalarFormatter
 
-
 import os
 
 ##########CONFIG###########
